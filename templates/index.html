@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시나브로마케팅 · 세금계산서 자동 입력</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #3CB043;
+    --green-dark: #2a8a30;
+    --green-light: #e8f7e9;
+    --black: #111111;
+    --gray-dark: #333333;
+    --gray: #666666;
+    --gray-light: #f2f2f2;
+    --border: #e0e0e0;
+    --white: #ffffff;
+    --error: #e53935;
+    --warning: #f57c00;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #f5f6f8;
+    color: var(--black);
+    min-height: 100vh;
+  }
+
+  /* ===== 헤더 ===== */
+  header {
+    background: var(--black);
+    padding: 16px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  }
+
+  .logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--green);
+    letter-spacing: 2px;
+  }
+
+  .logo span { color: var(--white); }
+
+  .header-badge {
+    background: var(--green);
+    color: var(--white);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ===== 메인 레이아웃 ===== */
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  .page-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--black);
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--gray);
+    margin-bottom: 32px;
+  }
+
+  /* ===== 업로드 존 ===== */
+  .upload-zone {
+    background: var(--white);
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 48px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    margin-bottom: 24px;
+    position: relative;
+  }
+
+  .upload-zone:hover,
+  .upload-zone.drag-over {
+    border-color: var(--green);
+    background: var(--green-light);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(60,176,67,0.12);
+  }
+
+  .upload-icon {
+    width: 56px;
+    height: 56px;
+    background: var(--green-light);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    font-size: 24px;
+  }
+
+  .upload-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--black);
+  }
+
+  .upload-sub {
+    font-size: 13px;
+    color: var(--gray);
+    line-height: 1.6;
+  }
+
+  .upload-btn {
+    margin-top: 20px;
+    background: var(--green);
+    color: var(--white);
+    border: none;
+    padding: 10px 28px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: background 0.2s;
+  }
+
+  .upload-btn:hover { background: var(--green-dark); }
+
+  #file-input { display: none; }
+
+  /* ===== 로딩 ===== */
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .loading-overlay.active { display: flex; }
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(255,255,255,0.2);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    color: var(--white);
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  /* ===== 결과 섹션 ===== */
+  #results-section { display: none; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .count-badge {
+    background: var(--green);
+    color: var(--white);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 20px;
+  }
+
+  /* ===== 카드 ===== */
+  .card {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    border: 1px solid var(--border);
+    animation: fadeIn 0.4s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--green-light);
+  }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--black);
+  }
+
+  .card-filename {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--gray);
+    background: var(--gray-light);
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+
+  /* ===== 그리드 폼 ===== */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group.double { grid-column: span 2; }
+
+  label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  input[type="text"], input[type="number"] {
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: 'Noto Sans KR', sans-serif;
+    color: var(--black);
+    transition: border-color 0.2s;
+    background: #fafafa;
+    width: 100%;
+  }
+
+  input:focus {
+    outline: none;
+    border-color: var(--green);
+    background: var(--white);
+  }
+
+  input.number-field {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+  }
+
+  /* ===== 품목 테이블 ===== */
+  .items-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-dark);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .items-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  .items-table th {
+    background: var(--black);
+    color: var(--white);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+
+  .items-table th:first-child { border-radius: 8px 0 0 0; }
+  .items-table th:last-child { border-radius: 0 8px 0 0; }
+
+  .items-table td {
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .items-table td input {
+    border: 1.5px solid transparent;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-family: 'IBM Plex Mono', monospace;
+    width: 100%;
+    background: transparent;
+    transition: all 0.2s;
+  }
+
+  .items-table td input:focus {
+    border-color: var(--green);
+    background: var(--white);
+    outline: none;
+  }
+
+  .items-table td input.name-input {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+  }
+
+  /* ===== 합계 요약 ===== */
+  .totals-bar {
+    display: flex;
+    gap: 16px;
+    background: var(--green-light);
+    border-radius: 10px;
+    padding: 14px 20px;
+    margin-top: 4px;
+  }
+
+  .total-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .total-label {
+    font-size: 11px;
+    color: var(--green-dark);
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .total-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--black);
+  }
+
+  .total-divider {
+    width: 1px;
+    background: rgba(60,176,67,0.3);
+    margin: 0 8px;
+  }
+
+  /* ===== 에러 카드 ===== */
+  .card.error {
+    border-color: var(--error);
+    background: #fff5f5;
+  }
+
+  .error-msg {
+    color: var(--error);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ===== 액션 버튼 ===== */
+  .actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 24px;
+    border-top: 2px solid var(--border);
+    margin-top: 32px;
+  }
+
+  .btn {
+    padding: 12px 28px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: var(--green);
+    color: var(--white);
+    box-shadow: 0 4px 12px rgba(60,176,67,0.3);
+  }
+
+  .btn-primary:hover {
+    background: var(--green-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(60,176,67,0.4);
+  }
+
+  .btn-secondary {
+    background: var(--gray-light);
+    color: var(--gray-dark);
+    border: 1.5px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    background: var(--border);
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ===== 토스트 ===== */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    background: var(--black);
+    color: var(--white);
+    padding: 14px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    z-index: 9999;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    animation: slideUp 0.3s ease;
+  }
+
+  .toast.show { display: flex; }
+  .toast.success .toast-icon::before { content: '✅'; }
+  .toast.error .toast-icon::before { content: '❌'; }
+
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  /* ===== 공급자 정보 박스 ===== */
+  .supplier-box {
+    background: var(--gray-light);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .supplier-tag {
+    font-size: 11px;
+    background: var(--black);
+    color: var(--green);
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .supplier-info-text {
+    font-size: 12px;
+    color: var(--gray);
+  }
+
+  .supplier-info-text strong {
+    color: var(--black);
+    font-weight: 600;
+  }
+
+  /* ===== 반응형 ===== */
+  @media (max-width: 768px) {
+    main { padding: 24px 16px; }
+    .upload-zone { padding: 32px 20px; }
+    .form-grid { grid-template-columns: 1fr; }
+    header { padding: 14px 20px; }
+  }
+
+  /* ===== 템플릿 박스 ===== */
+  .template-box {
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .template-box.active { border-color: var(--green); background: var(--green-light); }
+  .template-left { display: flex; align-items: center; gap: 12px; }
+  .template-status { font-size: 13px; font-weight: 600; color: var(--gray-dark); }
+  .template-status span { color: var(--green); }
+  .template-btn {
+    background: var(--black);
+    color: var(--white);
+    border: none;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .template-btn:hover { background: var(--green-dark); }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SINABRO<span>AD</span></div>
+  <div class="header-badge">세금계산서 자동 입력 v1.0</div>
+</header>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">이미지 분석 중... 잠깐만요 ☕</div>
+</div>
+
+<main>
+  <div class="page-title">📄 세금계산서 자동 입력</div>
+  <div class="page-subtitle">거래명세서 이미지를 업로드하면 세금계산서 양식을 자동으로 채워드립니다.</div>
+
+  <!-- 국세청 양식 템플릿 업로드 -->
+  <div class="template-box {% if template_exists %}active{% endif %}" id="template-box">
+    <div class="template-left">
+      <span style="font-size:20px">{% if template_exists %}✅{% else %}📂{% endif %}</span>
+      <div class="template-status">
+        {% if template_exists %}
+          국세청 양식 템플릿 <span>등록됨</span> — 다운로드 시 이 양식에 직접 입력됩니다
+        {% else %}
+          국세청 세금계산서 양식을 먼저 등록해주세요
+        {% endif %}
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <input type="file" id="template-input" accept=".xlsx" style="display:none">
+      <button class="template-btn" onclick="document.getElementById('template-input').click()">
+        📎 양식 등록
+      </button>
+    </div>
+  </div>
+
+  <!-- 공급자 고정 정보 표시 -->
+  <div class="supplier-box">
+    <span class="supplier-tag">공급자 고정</span>
+    <div class="supplier-info-text">
+      <strong>시나브로마케팅</strong> &nbsp;|&nbsp; 711-18-02350 &nbsp;|&nbsp; 김수현 &nbsp;|&nbsp; 서울 강동구 천호대로 505
+    </div>
+  </div>
+
+  <!-- 업로드 존 -->
+  <div class="upload-zone" id="upload-zone">
+    <div class="upload-icon">📋</div>
+    <div class="upload-title">거래명세서 이미지를 업로드하세요</div>
+    <div class="upload-sub">
+      드래그 앤 드롭 또는 클릭하여 파일 선택<br>
+      PNG, JPG 지원 · 여러 파일 동시 업로드 가능<br>
+      <small style="color: #aaa; font-size: 11px;">※ 파일명에 날짜 포함 권장 (예: 0502_물티슈_113건.png)</small>
+    </div>
+    <button class="upload-btn" onclick="document.getElementById('file-input').click()">📁 파일 선택</button>
+    <input type="file" id="file-input" accept="image/*" multiple>
+  </div>
+
+  <!-- 결과 섹션 -->
+  <div id="results-section">
+    <div class="section-header">
+      <div class="section-title">
+        🔍 파싱 결과
+        <span class="count-badge" id="count-badge">0건</span>
+      </div>
+    </div>
+
+    <div id="cards-container"></div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="resetAll()">↩ 초기화</button>
+      <button class="btn btn-primary" id="export-btn" onclick="exportExcel()">
+        ⬇ 엑셀 다운로드
+      </button>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast">
+  <span class="toast-icon"></span>
+  <span id="toast-msg"></span>
+</div>
+
+<script>
+let parsedData = [];
+
+// ===== 드래그 앤 드롭 =====
+const uploadZone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('file-input');
+
+uploadZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  uploadZone.classList.add('drag-over');
+});
+
+uploadZone.addEventListener('dragleave', () => {
+  uploadZone.classList.remove('drag-over');
+});
+
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+});
+
+uploadZone.addEventListener('click', (e) => {
+  if (e.target.tagName !== 'BUTTON') {
+    fileInput.click();
+  }
+});
+
+fileInput.addEventListener('change', (e) => {
+  handleFiles(e.target.files);
+});
+
+// ===== 파일 처리 =====
+async function handleFiles(files) {
+  if (files.length === 0) return;
+
+  showLoading(`${files.length}개 파일 분석 중... ☕`);
+
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append('files', file);
+  }
+
+  try {
+    const res = await fetch('/parse', { method: 'POST', body: formData });
+    const json = await res.json();
+
+    hideLoading();
+
+    if (json.error) {
+      showToast(json.error, 'error');
+      return;
+    }
+
+    renderResults(json.results);
+  } catch (err) {
+    hideLoading();
+    showToast('서버 오류가 발생했습니다. 앱이 실행 중인지 확인해주세요.', 'error');
+  }
+}
+
+// ===== 결과 렌더링 =====
+function renderResults(results) {
+  parsedData = [];
+  const container = document.getElementById('cards-container');
+  container.innerHTML = '';
+
+  let successCount = 0;
+
+  results.forEach((result, idx) => {
+    if (!result.success) {
+      container.innerHTML += `
+        <div class="card error">
+          <div class="error-msg">❌ ${result.filename} - ${result.error}</div>
+        </div>`;
+      return;
+    }
+
+    successCount++;
+    const d = result.data;
+    const items = d.items || [];
+    const dateInfo = d.date_info || {};
+    parsedData.push({ index: idx, data: d });
+
+    // 품목 행 생성
+    let itemRows = '';
+    const maxItems = Math.max(items.length, 2); // 최소 2행
+    for (let i = 0; i < maxItems; i++) {
+      const item = items[i] || {};
+      itemRows += `
+        <tr>
+          <td><input class="name-input" type="text" value="${item.name || ''}" 
+              data-idx="${idx}" data-item="${i}" data-field="name" onchange="updateItem(this)"></td>
+          <td><input type="number" value="${item.quantity || ''}" 
+              data-idx="${idx}" data-item="${i}" data-field="quantity" onchange="updateItem(this)"></td>
+          <td><input type="number" value="${item.unit_price || ''}" 
+              data-idx="${idx}" data-item="${i}" data-field="unit_price" onchange="updateItem(this)"></td>
+          <td><input type="number" value="${item.supply_amount || ''}" 
+              data-idx="${idx}" data-item="${i}" data-field="supply_amount" onchange="updateItem(this)"></td>
+          <td><input type="number" value="${item.tax_amount || ''}" 
+              data-idx="${idx}" data-item="${i}" data-field="tax_amount" onchange="updateItem(this)"></td>
+        </tr>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.id = `card-${idx}`;
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-title">📄 ${idx + 1}번째 거래명세서</div>
+        <div class="card-filename">${d.filename || ''}</div>
+      </div>
+
+      <!-- 공급받는자 정보 -->
+      <div class="items-label">공급받는자 정보</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>사업자등록번호</label>
+          <input type="text" value="${d.supplier_info?.registration_number || ''}" 
+              data-idx="${idx}" data-section="supplier_info" data-field="registration_number" onchange="updateSupplier(this)">
+        </div>
+        <div class="form-group">
+          <label>상호</label>
+          <input type="text" value="${d.supplier_info?.company_name || ''}" 
+              data-idx="${idx}" data-section="supplier_info" data-field="company_name" onchange="updateSupplier(this)">
+        </div>
+        <div class="form-group">
+          <label>성명</label>
+          <input type="text" value="${d.supplier_info?.representative || ''}" 
+              data-idx="${idx}" data-section="supplier_info" data-field="representative" onchange="updateSupplier(this)">
+        </div>
+        <div class="form-group double">
+          <label>사업장 주소</label>
+          <input type="text" value="${d.supplier_info?.address || ''}" 
+              data-idx="${idx}" data-section="supplier_info" data-field="address" onchange="updateSupplier(this)">
+        </div>
+        <div class="form-group">
+          <label>업태</label>
+          <input type="text" value="${d.supplier_info?.business_type || ''}" 
+              data-idx="${idx}" data-section="supplier_info" data-field="business_type" onchange="updateSupplier(this)">
+        </div>
+        <div class="form-group">
+          <label>종목</label>
+          <input type="text" value="${d.supplier_info?.business_item || ''}" 
+              data-idx="${idx}" data-section="supplier_info" data-field="business_item" onchange="updateSupplier(this)">
+        </div>
+        <div class="form-group">
+          <label>이메일</label>
+          <input type="text" value="${d.supplier_info?.email || ''}" 
+              data-idx="${idx}" data-section="supplier_info" data-field="email" onchange="updateSupplier(this)">
+        </div>
+        <div class="form-group">
+          <label>작성일자</label>
+          <input type="text" value="${dateInfo.full_date || ''}" 
+              data-idx="${idx}" data-section="date_info" data-field="full_date" onchange="updateSupplier(this)" 
+              placeholder="YYYYMMDD">
+        </div>
+      </div>
+
+      <!-- 품목 -->
+      <div class="items-label">품목 내역</div>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th style="width:35%">품목명</th>
+            <th style="width:10%">수량</th>
+            <th style="width:13%">단가</th>
+            <th style="width:15%">공급가액</th>
+            <th style="width:13%">세액</th>
+          </tr>
+        </thead>
+        <tbody id="items-${idx}">${itemRows}</tbody>
+      </table>
+
+      <!-- 합계 -->
+      <div class="totals-bar">
+        <div class="total-item">
+          <div class="total-label">공급가액 합계</div>
+          <div class="total-value" id="supply-${idx}">${formatNum(d.totals?.supply_amount)}</div>
+        </div>
+        <div class="total-divider"></div>
+        <div class="total-item">
+          <div class="total-label">세액 합계</div>
+          <div class="total-value" id="tax-${idx}">${formatNum(d.totals?.tax_amount)}</div>
+        </div>
+        <div class="total-divider"></div>
+        <div class="total-item" style="flex:1">
+          <div class="total-label">총액</div>
+          <div class="total-value" id="total-${idx}">${formatNum((d.totals?.supply_amount||0) + (d.totals?.tax_amount||0))}</div>
+        </div>
+        <div style="display:flex; gap:12px; align-items:center; margin-left:auto;">
+          <input type="number" placeholder="공급가액 합계 수정"
+            value="${d.totals?.supply_amount || ''}"
+            data-idx="${idx}" data-field="supply" onchange="updateTotal(this)"
+            style="width:140px; border:1.5px solid var(--border); border-radius:8px; padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px;">
+          <input type="number" placeholder="세액 합계 수정"
+            value="${d.totals?.tax_amount || ''}"
+            data-idx="${idx}" data-field="tax" onchange="updateTotal(this)"
+            style="width:120px; border:1.5px solid var(--border); border-radius:8px; padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px;">
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  document.getElementById('count-badge').textContent = `${successCount}건`;
+  document.getElementById('results-section').style.display = 'block';
+  document.getElementById('export-btn').disabled = successCount === 0;
+
+  window.scrollTo({ top: 300, behavior: 'smooth' });
+}
+
+// ===== 데이터 업데이트 함수들 =====
+function updateSupplier(input) {
+  const idx = parseInt(input.dataset.idx);
+  const section = input.dataset.section;
+  const field = input.dataset.field;
+  const entry = parsedData.find(p => p.index === idx);
+  if (!entry) return;
+  if (section === 'date_info') {
+    entry.data.date_info = entry.data.date_info || {};
+    entry.data.date_info[field] = input.value;
+  } else {
+    entry.data[section] = entry.data[section] || {};
+    entry.data[section][field] = input.value;
+  }
+}
+
+function updateItem(input) {
+  const idx = parseInt(input.dataset.idx);
+  const itemIdx = parseInt(input.dataset.item);
+  const field = input.dataset.field;
+  const entry = parsedData.find(p => p.index === idx);
+  if (!entry) return;
+  entry.data.items = entry.data.items || [];
+  while (entry.data.items.length <= itemIdx) entry.data.items.push({});
+  entry.data.items[itemIdx][field] = field === 'name' ? input.value : Number(input.value);
+}
+
+function updateTotal(input) {
+  const idx = parseInt(input.dataset.idx);
+  const field = input.dataset.field;
+  const entry = parsedData.find(p => p.index === idx);
+  if (!entry) return;
+  entry.data.totals = entry.data.totals || {};
+  if (field === 'supply') {
+    entry.data.totals.supply_amount = Number(input.value);
+    document.getElementById(`supply-${idx}`).textContent = formatNum(Number(input.value));
+  } else {
+    entry.data.totals.tax_amount = Number(input.value);
+    document.getElementById(`tax-${idx}`).textContent = formatNum(Number(input.value));
+  }
+  const s = entry.data.totals.supply_amount || 0;
+  const t = entry.data.totals.tax_amount || 0;
+  document.getElementById(`total-${idx}`).textContent = formatNum(s + t);
+}
+
+// ===== 엑셀 다운로드 =====
+async function exportExcel() {
+  if (parsedData.length === 0) {
+    showToast('다운로드할 데이터가 없습니다.', 'error');
+    return;
+  }
+
+  showLoading('엑셀 파일 생성 중...');
+
+  try {
+    const rows = parsedData.map(p => p.data);
+    const res = await fetch('/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || '다운로드 실패');
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '세금계산서_업로드양식.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+
+    hideLoading();
+    showToast('엑셀 파일 다운로드 완료!', 'success');
+  } catch (err) {
+    hideLoading();
+    showToast(err.message, 'error');
+  }
+}
+
+// ===== 초기화 =====
+function resetAll() {
+  parsedData = [];
+  document.getElementById('cards-container').innerHTML = '';
+  document.getElementById('results-section').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  showToast('초기화되었습니다.', 'success');
+}
+
+// ===== 유틸 =====
+function formatNum(n) {
+  if (!n && n !== 0) return '-';
+  return Number(n).toLocaleString('ko-KR') + '원';
+}
+
+function showLoading(msg) {
+  document.getElementById('loading-text').textContent = msg || '처리 중...';
+  document.getElementById('loading').classList.add('active');
+}
+
+function hideLoading() {
+  document.getElementById('loading').classList.remove('active');
+}
+
+function showToast(msg, type = 'success') {
+  const toast = document.getElementById('toast');
+  const msgEl = document.getElementById('toast-msg');
+  toast.className = `toast show ${type}`;
+  msgEl.textContent = msg;
+  setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+// ===== 템플릿 업로드 =====
+document.getElementById('template-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  showLoading('국세청 양식 등록 중...');
+  const formData = new FormData();
+  formData.append('template', file);
+  try {
+    const res = await fetch('/upload-template', { method: 'POST', body: formData });
+    const json = await res.json();
+    hideLoading();
+    if (json.success) {
+      showToast('✅ 양식 등록 완료! 이제 이미지를 업로드하세요.', 'success');
+      document.getElementById('template-box').classList.add('active');
+      document.getElementById('template-box').innerHTML = `
+        <div class="template-left">
+          <span style="font-size:20px">✅</span>
+          <div class="template-status">국세청 양식 템플릿 <span>등록됨</span> — 다운로드 시 이 양식에 직접 입력됩니다</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input type="file" id="template-input" accept=".xlsx" style="display:none">
+          <button class="template-btn" onclick="document.getElementById('template-input').click()">📎 양식 교체</button>
+        </div>
+      `;
+      // 새 input에 이벤트 다시 바인딩
+      document.getElementById('template-input').addEventListener('change', arguments.callee.bind(this));
+    } else {
+      showToast(json.error, 'error');
+    }
+  } catch (err) {
+    hideLoading();
+    showToast('양식 등록 실패', 'error');
+  }
+});
+
+</script>
+</body>
+</html>
