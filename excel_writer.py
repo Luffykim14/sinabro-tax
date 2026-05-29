@@ -33,7 +33,7 @@ def create_excel(rows: list, output_folder: str) -> str:
     # 템플릿 있으면 사용, 없으면 기본 생성
     if os.path.exists(TEMPLATE_PATH):
         wb = openpyxl.load_workbook(TEMPLATE_PATH)
-        ws = wb['시트1']
+        ws = wb.worksheets[0]
         # 기존 데이터 행 초기화 (7행부터)
         for row_idx in range(7, ws.max_row + 1):
             for col_idx in range(1, 60):
